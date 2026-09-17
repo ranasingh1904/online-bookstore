@@ -3,6 +3,8 @@ target/
 
 # Ignore IntelliJ IDEA project settings
 .idea/
+.idea/**
+**/.idea/
 *.iws
 *.iml
 *.ipr
