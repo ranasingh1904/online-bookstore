@@ -5,10 +5,13 @@ import com.bookstore.dto.UpdateCartItemRequest;
 import com.bookstore.entity.AppUser;
 import com.bookstore.entity.Book;
 import com.bookstore.entity.CartItem;
+import com.bookstore.exception.ResourceNotFoundException;
 import com.bookstore.repository.BookRepository;
 import com.bookstore.repository.CartItemRepository;
 import com.bookstore.service.CartService;
 import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
@@ -16,6 +19,7 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.math.BigDecimal;
+import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
 
@@ -36,142 +40,167 @@ class CartServiceTest {
 
     private AppUser user;
     private Book book;
+    private final Long VALID_BOOK_ID = 4L;
+    private final Long INVALID_BOOK_ID = 999L;
 
     @BeforeEach
     void setUp() {
-
         user = new AppUser();
         user.setId(1L);
         user.setName("John");
         user.setEmail("john@gmail.com");
 
-        book = new Book(
-                "Godan",
-                "Munshi Premchand",
-                new BigDecimal("40.00")
-        );
-
-        book.setId(4L);
+        book = new Book("Godan", "Munshi Premchand", new BigDecimal("40.00"));
+        book.setId(VALID_BOOK_ID);
     }
 
-    @Test
-    void shouldAddBookToCart() {
+    @Nested
+    @DisplayName("Tests for adding items to cart")
+    class AddItemTests {
 
-        AddCartItemRequest request =
-                new AddCartItemRequest(4L, 1);
+        @Test
+        @DisplayName("Should successfully add a new book to the cart when it doesn't exist yet")
+        void shouldAddNewBookToCart() {
+            AddCartItemRequest request = new AddCartItemRequest(VALID_BOOK_ID, 1);
+            CartItem savedItem = new CartItem(user, book, 1);
 
-        when(bookRepository.findById(4L))
-                .thenReturn(Optional.of(book));
+            when(bookRepository.findById(VALID_BOOK_ID)).thenReturn(Optional.of(book));
+            when(cartRepository.findByUserAndBookId(user, VALID_BOOK_ID)).thenReturn(Optional.empty());
+            when(cartRepository.save(any(CartItem.class))).thenReturn(savedItem);
 
-        when(cartRepository.findByUserAndBookId(user, 4L))
-                .thenReturn(Optional.empty());
+            CartItem result = cartService.addItem(user, request);
 
-        CartItem savedItem =
-                new CartItem(user, book, 1);
+            assertNotNull(result);
+            assertEquals(1, result.getQuantity());
+            assertEquals(book, result.getBook());
+            verify(cartRepository).save(any(CartItem.class));
+        }
 
-        when(cartRepository.save(any(CartItem.class)))
-                .thenReturn(savedItem);
+        @Test
+        @DisplayName("Should increment quantity of an existing item when the same book is added again")
+        void shouldIncrementQuantityForExistingBook() {
+            CartItem existingItem = new CartItem(user, book, 1);
+            AddCartItemRequest request = new AddCartItemRequest(VALID_BOOK_ID, 2);
 
-        CartItem result =
-                cartService.addItem(user, request);
+            when(bookRepository.findById(VALID_BOOK_ID)).thenReturn(Optional.of(book));
+            when(cartRepository.findByUserAndBookId(user, VALID_BOOK_ID)).thenReturn(Optional.of(existingItem));
+            when(cartRepository.save(existingItem)).thenReturn(existingItem);
 
-        assertEquals(1, result.getQuantity());
-        assertEquals(book, result.getBook());
+            CartItem result = cartService.addItem(user, request);
 
-        verify(cartRepository).save(any(CartItem.class));
+            assertEquals(3, result.getQuantity());
+            verify(cartRepository).save(existingItem);
+        }
+
+        @Test
+        @DisplayName("Negative Case: Should throw ResourceNotFoundException when trying to add a non-existent book")
+        void shouldThrowExceptionWhenBookDoesNotExist() {
+            AddCartItemRequest request = new AddCartItemRequest(INVALID_BOOK_ID, 1);
+
+            when(bookRepository.findById(INVALID_BOOK_ID)).thenReturn(Optional.empty());
+
+            ResourceNotFoundException exception = assertThrows(
+                    ResourceNotFoundException.class,
+                    () -> cartService.addItem(user, request)
+            );
+
+            assertEquals("Book not found: " + INVALID_BOOK_ID, exception.getMessage());
+            verify(cartRepository, never()).findByUserAndBookId(any(), any());
+            verify(cartRepository, never()).save(any());
+        }
     }
 
-    @Test
-    void shouldIncreaseQuantityWhenBookAlreadyExists() {
+    @Nested
+    @DisplayName("Tests for updating cart items")
+    class UpdateItemTests {
 
-        CartItem existingItem =
-                new CartItem(user, book, 1);
+        @Test
+        @DisplayName("Should successfully update the quantity of a book currently in the cart")
+        void shouldUpdateCartQuantity() {
+            CartItem item = new CartItem(user, book, 1);
+            UpdateCartItemRequest request = new UpdateCartItemRequest(5);
 
-        AddCartItemRequest request =
-                new AddCartItemRequest(4L, 2);
+            when(cartRepository.findByUserAndBookId(user, VALID_BOOK_ID)).thenReturn(Optional.of(item));
+            when(cartRepository.save(item)).thenReturn(item);
 
-        when(bookRepository.findById(4L))
-                .thenReturn(Optional.of(book));
+            CartItem result = cartService.updateItem(user, VALID_BOOK_ID, request);
 
-        when(cartRepository.findByUserAndBookId(user, 4L))
-                .thenReturn(Optional.of(existingItem));
+            assertEquals(5, result.getQuantity());
+            verify(cartRepository).save(item);
+        }
 
-        when(cartRepository.save(existingItem))
-                .thenReturn(existingItem);
+        @Test
+        @DisplayName("Negative Case: Should throw ResourceNotFoundException when updating a book not in the user's cart")
+        void shouldThrowExceptionWhenUpdatingItemNotInCart() {
+            UpdateCartItemRequest request = new UpdateCartItemRequest(5);
 
-        CartItem result =
-                cartService.addItem(user, request);
+            when(cartRepository.findByUserAndBookId(user, VALID_BOOK_ID)).thenReturn(Optional.empty());
 
-        assertEquals(3, result.getQuantity());
+            ResourceNotFoundException exception = assertThrows(
+                    ResourceNotFoundException.class,
+                    () -> cartService.updateItem(user, VALID_BOOK_ID, request)
+            );
 
-        verify(cartRepository).save(existingItem);
+            assertEquals("Book is not in cart", exception.getMessage());
+            verify(cartRepository, never()).save(any());
+        }
     }
 
-    @Test
-    void shouldUpdateCartQuantity() {
+    @Nested
+    @DisplayName("Tests for removing cart items")
+    class RemoveItemTests {
 
-        CartItem item =
-                new CartItem(user, book, 1);
+        @Test
+        @DisplayName("Should successfully remove a book from the cart when it exists")
+        void shouldRemoveBookFromCart() {
+            CartItem item = new CartItem(user, book, 1);
 
-        when(cartRepository.findByUserAndBookId(user, 4L))
-                .thenReturn(Optional.of(item));
+            when(cartRepository.findByUserAndBookId(user, VALID_BOOK_ID)).thenReturn(Optional.of(item));
 
-        when(cartRepository.save(item))
-                .thenReturn(item);
+            cartService.removeItem(user, VALID_BOOK_ID);
 
-        UpdateCartItemRequest request =
-                new UpdateCartItemRequest(5);
+            verify(cartRepository).delete(item);
+        }
 
-        CartItem result =
-                cartService.updateItem(user, 4L, request);
+        @Test
+        @DisplayName("Negative Case: Should throw ResourceNotFoundException when trying to remove a book not in the cart")
+        void shouldThrowExceptionWhenRemovingItemNotInCart() {
+            when(cartRepository.findByUserAndBookId(user, VALID_BOOK_ID)).thenReturn(Optional.empty());
 
-        assertEquals(5, result.getQuantity());
+            ResourceNotFoundException exception = assertThrows(
+                    ResourceNotFoundException.class,
+                    () -> cartService.removeItem(user, VALID_BOOK_ID)
+            );
+
+            assertEquals("Book is not in cart", exception.getMessage());
+            verify(cartRepository, never()).delete(any(CartItem.class));
+        }
     }
 
-    @Test
-    void shouldRemoveBookFromCart() {
+    @Nested
+    @DisplayName("Tests for calculating cart totals")
+    class TotalCalculationTests {
 
-        CartItem item =
-                new CartItem(user, book, 1);
+        @Test
+        @DisplayName("Should correctly calculate total price for multiple quantities of books in the cart")
+        void shouldCalculateCartTotalForItems() {
+            CartItem item = new CartItem(user, book, 2);
 
-        when(cartRepository.findByUserAndBookId(user, 4L))
-                .thenReturn(Optional.of(item));
+            when(cartRepository.findByUser(user)).thenReturn(List.of(item));
 
-        cartService.removeItem(user, 4L);
+            BigDecimal total = cartService.calculateTotal(user);
 
-        verify(cartRepository).delete(item);
-    }
+            assertEquals(new BigDecimal("80.00"), total);
+        }
 
-    @Test
-    void shouldCalculateCartTotal() {
+        @Test
+        @DisplayName("Edge Case: Should return zero total when the user's cart is empty")
+        void shouldReturnZeroTotalWhenCartIsEmpty() {
+            when(cartRepository.findByUser(user)).thenReturn(Collections.emptyList());
 
-        CartItem item =
-                new CartItem(user, book, 2);
+            BigDecimal total = cartService.calculateTotal(user);
 
-        when(cartRepository.findByUser(user))
-                .thenReturn(List.of(item));
-
-        BigDecimal total =
-                cartService.calculateTotal(user);
-
-        assertEquals(
-                new BigDecimal("80.00"),
-                total
-        );
-    }
-
-    @Test
-    void shouldRejectBookThatDoesNotExist() {
-
-        when(bookRepository.findById(999L))
-                .thenReturn(Optional.empty());
-
-        AddCartItemRequest request =
-                new AddCartItemRequest(999L, 1);
-
-        assertThrows(
-                RuntimeException.class,
-                () -> cartService.addItem(user, request)
-        );
+            assertEquals(BigDecimal.ZERO, total);
+        }
     }
 }
