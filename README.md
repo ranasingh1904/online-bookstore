@@ -63,7 +63,7 @@ POST /api/auth/register
 
 POST /api/auth/login
 
-#API Books
+# API Books
 GET /api/books
 
 GET /api/books/{id}
@@ -97,7 +97,7 @@ Username: sa
 
 Password:
 
-#Application Run :
+# Application Run :
 Bash
 Run: mvn spring-boot:run
 
@@ -108,7 +108,7 @@ Run: mvn test
 ------------------------------------------
 ############################################## API DETAILS ##########################################
 
-#Register
+# Register
 POST http://localhost:8080/api/auth/register
 Content-Type: application/json
 
@@ -161,7 +161,7 @@ Content-Type: application/json
 "quantity": 2
 }
 
-#View cart
+# View cart
 GET http://localhost:8080/api/cart
 Authorization: Bearer YOUR_TOKEN
 
@@ -227,7 +227,7 @@ GET http://localhost:8080/api/orders
 Authorization: Bearer YOUR_TOKEN
 
 
-#Specific order:
+# Specific order:
 GET http://localhost:8080/api/orders/1
 Authorization: Bearer YOUR_TOKEN
 
@@ -272,3 +272,14 @@ The application follows a layered REST API architecture using Spring Boot.
                     │ Auth Tokens         │
                     └─────────────────────┘
 Architecture Components
+REST Client – APIs can be tested using Postman
+Controllers – Expose REST endpoints for authentication, books, cart, and orders.
+Services – Implement the application's business logic and processing rules.
+Spring Data JPA Repositories – Provide database access and persistence operations.
+H2 Database – Stores users, books, cart items, orders, order items, and authentication tokens.
+Request Flow.
+A typical request flows through the application as follows:
+
+REST Client → Controller → Service → Repository → H2 Database
+
+The response follows the reverse path back to the REST client.
