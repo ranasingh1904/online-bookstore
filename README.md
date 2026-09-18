@@ -106,6 +106,10 @@ Run: mvn test
 
 # API Testing with Postman
 A pre-configured Postman collection is included in the root directory to test the API endpoints locally.
+Swagger was not included, as the provided Postman collection is used for API documentation and testing.
+The Postman collection covers all available REST API endpoints along with their details.
+It can be imported directly into Postman for API testing and validation.
+This provides a reusable collection for maintaining and testing the available APIs.
 
 # Importing the Collection
 1. Open Postman.
@@ -120,13 +124,14 @@ A pre-configured Postman collection is included in the root directory to test th
 POST http://localhost:8080/api/auth/register
 Content-Type: application/json
 
+Request:
 {
 "name": "Rana Singh",
 "email": "ranasigh@gmail.com",
 "password": "*********"
 }
 
-Expected:
+Expected Response:
 
 {
 "token": "xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx",
@@ -140,7 +145,9 @@ Save the token.
 # Get books
 GET http://localhost:8080/api/books
 
-Example:
+Request: EMPTY BODY
+
+Expected Response:
 
 [
 {
@@ -164,16 +171,31 @@ POST http://localhost:8080/api/cart/items
 Authorization: Bearer YOUR_TOKEN
 Content-Type: application/json
 
+Request Example :
 {
 "bookId": 1,
 "quantity": 2
+}
+
+Expected Response:
+{
+"id": 2,
+"book": {
+"id": 1,
+"title": "Five Point Someone",
+"author": "Chetan Bhagat",
+"price": 45.00
+},
+"quantity": 1
 }
 
 # View cart
 GET http://localhost:8080/api/cart
 Authorization: Bearer YOUR_TOKEN
 
-Example:
+Request: EMPTY BODY
+
+Response:
 
 {
 "items": [
@@ -196,6 +218,8 @@ PATCH http://localhost:8080/api/cart/items/1
 Authorization: Bearer YOUR_TOKEN
 Content-Type: application/json
 
+Request:
+
 {
 "quantity": 5
 }
@@ -213,6 +237,8 @@ Then:
 POST http://localhost:8080/api/orders/checkout
 Authorization: Bearer YOUR_TOKEN
 
+Request : EMPTY BODY
+
 Example response:
 
 {
@@ -222,6 +248,7 @@ Example response:
 "createdAt": "2026-09-17T11:15:20",
 "items": [
 {
+"id": 1,
 "title": "XXXXX",
 "price": 45.00,
 "quantity": 2,
