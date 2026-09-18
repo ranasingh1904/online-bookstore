@@ -104,6 +104,14 @@ Run: mvn spring-boot:run
 Bash
 Run: mvn test
 
+# API Testing with Postman
+A pre-configured Postman collection is included in the root directory to test the API endpoints locally.
+
+# Importing the Collection
+1. Open Postman.
+2. Click Import in the top left corner.
+3. Select 'Online_Bookstore.postman_collection' from the root directory of this project.
+
 
 ------------------------------------------
 ############################################## API DETAILS ##########################################
